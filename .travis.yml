@@ -36,12 +36,24 @@ before_install:
 install:
   - composer install
   - composer require guzzlehttp/guzzle:$GUZZLE_VERSION
+  - travis_retry composer install --no-interaction --prefer-source
 
 before_script:
   - phpenv version-name | grep ^5.[34] && echo "extension=apc.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini ; true
   - phpenv version-name | grep ^5.[34] && echo "apc.enable_cli=1" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini ; true
+  - if [[ "$TRAVIS_PHP_VERSION" == '5.6' ]]; then composer require satooshi/php-coveralls:dev-master squizlabs/php_codesniffer:2.* -n ; fi
+  - if [[ "$TRAVIS_PHP_VERSION" != '5.6' ]]; then composer install -n ; fi
 
 script:
   - vendor/bin/phpunit
   - if [[ "$TRAVIS_PHP_VERSION" == "5.4" ]]; then vendor/bin/phpcs src --standard=style/ruleset.xml -np; fi
+  - if [ "$TRAVIS_PHP_VERSION" != "5.5.9" ] && [ "$TRAVIS_PHP_VERSION" != "5.5" ] && [ "$TRAVIS_PHP_VERSION" != "5.6" ]; then vendor/bin/phpunit; fi
+  - if [ "$TRAVIS_PHP_VERSION" == "5.5.9" ] || [ "$TRAVIS_PHP_VERSION" == "5.5" ] || [ "$TRAVIS_PHP_VERSION" == "5.6" ]; then vendor/bin/phpunit --coverage-clover build/logs/clover.xml; fi
+
+after_script:
+  - if [ "$TRAVIS_PHP_VERSION" == "5.5.9" ] || [ "$TRAVIS_PHP_VERSION" == "5.5" ] || [ "$TRAVIS_PHP_VERSION" == "5.6" ]; then wget https://scrutinizer-ci.com/ocular.phar; fi
+  - if [ "$TRAVIS_PHP_VERSION" == "5.5.9" ] || [ "$TRAVIS_PHP_VERSION" == "5.5" ] || [ "$TRAVIS_PHP_VERSION" == "5.6" ]; then php ocular.phar code-coverage:upload --format=php-clover build/logs/clover.xml; fi
+
+after_success:
+  - travis_retry php vendor/bin/coveralls%
 
